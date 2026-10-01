@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#0b3b48" />
+    <title>Spinal Hypotension Risk Screen</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <main class="page-shell">
+      <header class="hero">
+        <p class="eyebrow">LSCS · pre-spinal screening prototype</p>
+        <h1>Spinal Hypotension<br />Risk Screen</h1>
+        <p class="lede">A bedside-oriented estimate of severe post-spinal hypotension risk for patients having caesarean delivery under spinal anaesthesia.</p>
+      </header>
+
+      <section class="safety-banner" aria-label="Clinical safety notice">
+        <span aria-hidden="true">!</span>
+        <p><strong>Research support only.</strong> This tool is not a validated clinical decision device and must not replace anaesthesiologist assessment, local protocols, or continuous monitoring.</p>
+      </section>
+
+      <div class="workspace">
+        <form id="risk-form" class="patient-form" novalidate>
+          <div class="form-heading">
+            <div>
+              <p class="section-tag">Patient inputs</p>
+              <h2>Pre-spinal profile</h2>
+            </div>
+            <button type="button" class="text-button" id="reset-button">Clear form</button>
+          </div>
+
+          <fieldset>
+            <legend>Patient and obstetric factors</legend>
+            <div class="field-grid">
+              <label>Age <span>years</span><input id="age" type="number" min="18" max="55" step="1" placeholder="e.g. 28" required /></label>
+              <label>BMI <span>kg/m²</span><input id="bmi" type="number" min="15" max="60" step="0.1" placeholder="e.g. 27.3" required /></label>
+              <label>Parity <span>births</span><input id="parity" type="number" min="0" max="15" step="1" placeholder="e.g. 1" required /></label>
+              <label>Gestational age <span>weeks</span><input id="gestation" type="number" min="20" max="44" step="0.1" placeholder="e.g. 38" required /></label>
+              <label class="select-label">Procedure type
+                <select id="emergency" required><option value="">Select…</option><option value="0">Elective LSCS</option><option value="1">Emergency LSCS</option></select>
+              </label>
+              <label>Estimated baby weight <span>kg</span><input id="babyWeight" type="number" min="0.5" max="6" step="0.1" placeholder="e.g. 2.5" required /></label>
+            </div>
+          </fieldset>
+
+          <fieldset>
+            <legend>Baseline haemodynamics</legend>
+            <p class="helper">Record the pre-spinal values used for clinical assessment.</p>
+            <div class="field-grid">
+              <label>Systolic BP <span>mmHg</span><input id="sbp" type="number" min="60" max="240" step="1" placeholder="e.g. 128" required /></label>
+              <label>Diastolic BP <span>mmHg</span><input id="dbp" type="number" min="30" max="150" step="1" placeholder="e.g. 82" required /></label>
+              <label>Heart rate <span>bpm</span><input id="hr" type="number" min="35" max="220" step="1" placeholder="e.g. 96" required /></label>
+              <div class="calculated-field"><span>Calculated MAP</span><strong id="map-value">—</strong><small>mmHg</small></div>
+              <div class="calculated-field"><span>Shock index</span><strong id="si-value">—</strong><small>HR ÷ SBP</small></div>
+            </div>
+          </fieldset>
+
+          <fieldset>
+            <legend>Planned management</legend>
+            <div class="field-grid">
+              <label>Intrathecal bupivacaine <span>mg</span><input id="bupivacaine" type="number" min="0" max="20" step="0.1" placeholder="e.g. 12.5" required /></label>
+              <label>Planned fluid volume <span>mL</span><input id="fluid" type="number" min="0" max="5000" step="50" placeholder="e.g. 1500" required /></label>
+            </div>
+          </fieldset>
+
+          <p id="form-error" class="form-error" role="alert"></p>
+          <button class="primary-button" type="submit">Estimate screening risk <span>→</span></button>
+        </form>
+
+        <aside class="result-panel" aria-live="polite">
+          <p class="section-tag">Screening result</p>
+          <div id="empty-state" class="empty-state">
+            <div class="pulse-icon">⌁</div>
+            <h2>Ready for an assessment</h2>
+            <p>Enter the pre-spinal profile to generate an estimated severe-hypotension screening risk.</p>
+          </div>
+          <div id="result-state" hidden>
+            <div class="risk-topline"><span id="risk-label" class="risk-label">—</span><span id="risk-percent" class="risk-percent">—</span></div>
+            <div class="meter"><div id="meter-fill" class="meter-fill"></div></div>
+            <p id="risk-summary" class="risk-summary"></p>
+            <div class="stat-row"><div><span>MAP</span><strong id="result-map">—</strong></div><div><span>Shock index</span><strong id="result-si">—</strong></div><div><span>Cohort baseline</span><strong>69.5%</strong></div></div>
+            <section class="clinical-note"><h3>Clinical considerations</h3><ul id="considerations"></ul></section>
+            <p class="method-note">Derived from the dissertation cohort’s reported predictors and feature-importance rankings. The fitted Random Forest was not supplied; this is a transparent proxy score, not the study’s trained model or an externally validated probability.</p>
+          </div>
+        </aside>
+      </div>
+
+    </main>
+    <footer>For supervised clinical education and research use. Version 0.1 · No patient data is stored or transmitted.</footer>
+    <script src="app.js"></script>
+  </body>
+</html>
