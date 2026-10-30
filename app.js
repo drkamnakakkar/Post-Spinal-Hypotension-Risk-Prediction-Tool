@@ -1,5 +1,5 @@
 const $ = (id) => document.getElementById(id);
-const fields = ['age','bmi','parity','gestation','emergency','babyWeight','sbp','dbp','hr','bupivacaine','fluid'];
+const fields = ['age','bmi','parity','gestation','emergency','sbp','dbp','hr'];
 
 function baselineValues() {
   return Object.fromEntries(fields.map(id => [id, Number($(id).value)]));
@@ -12,29 +12,10 @@ function updateDerived() {
   $('si-value').textContent = sbp > 0 && hr > 0 ? (hr / sbp).toFixed(2) : '—';
 }
 
-function sigmoid(value) { return 1 / (1 + Math.exp(-value)); }
-function z(value, mean, sd) { return (value - mean) / sd; }
-
-function estimateRisk(v) {
+function derivedValues(v) {
   const map = v.dbp + (v.sbp - v.dbp) / 3;
   const si = v.hr / v.sbp;
-  // Transparent proxy: reported RF importance used as relative weights, centred on cohort means.
-  // It deliberately retains cohort baseline prevalence and is not a reconstruction of the RF model.
-  const score = 0.82
-    + .73 * z(v.sbp, 128.28, 11.14)
-    + .52 * z(map, 97.46, 8.48)
-    + .38 * z(v.age, 27.84, 4.81)
-    + .39 * z(v.hr, 95.98, 11.91)
-    + .36 * z(si, .75, .07)
-    + .37 * z(v.dbp, 82.03, 8.22)
-    + .30 * z(v.bmi, 27.29, 3.29)
-    - .22 * z(v.gestation, 38.10, 2.01)
-    + .20 * z(v.fluid, 1474, 278.95)
-    + .23 * z(v.babyWeight, 2.46, .46)
-    - .08 * z(v.parity, .65, .48)
-    + .07 * z(v.bupivacaine, 11.76, 1.17)
-    + .08 * (v.emergency ? 1 : -1);
-  return { risk: sigmoid(score), map, si };
+  return { map: Math.round(map), si };
 }
 
 function considerations(v, result) {
@@ -47,8 +28,8 @@ function considerations(v, result) {
   return notes;
 }
 
-function showResult(v) {
-  const r = estimateRisk(v), pct = Math.round(r.risk * 100);
+function showResult(v, r) {
+  const pct = Math.round(r.risk * 100);
   let label = 'Lower screening signal', color = '#167378';
   if (pct >= 80) { label = 'High screening signal'; color = '#b7433d'; }
   else if (pct >= 60) { label = 'Elevated screening signal'; color = '#b96818'; }
@@ -56,17 +37,30 @@ function showResult(v) {
   $('risk-label').textContent = label; $('risk-label').style.cssText = `color:${color};background:${color}1a`;
   $('risk-percent').textContent = `${pct}%`; $('risk-percent').style.color = color;
   $('meter-fill').style.width = `${pct}%`; $('meter-fill').style.background = color;
-  $('risk-summary').textContent = `This profile produces an ${label.toLowerCase()} for the study outcome: severe hypotension after spinal anaesthesia.`;
+  $('risk-summary').textContent = `The thesis Random Forest estimates a ${pct}% probability of the study outcome: severe hypotension after spinal anaesthesia.`;
   $('result-map').textContent = `${r.map.toFixed(0)} mmHg`; $('result-si').textContent = r.si.toFixed(2);
   $('considerations').replaceChildren(...considerations(v, r).map(t => { const li=document.createElement('li'); li.textContent=t; return li; }));
 }
 
 fields.forEach(id => $(id).addEventListener('input', updateDerived));
-$('risk-form').addEventListener('submit', (event) => {
+$('risk-form').addEventListener('submit', async (event) => {
   event.preventDefault();
   if (!event.currentTarget.checkValidity()) { $('form-error').textContent = 'Complete all fields with values in the shown range.'; event.currentTarget.reportValidity(); return; }
   const values = baselineValues();
   if (values.dbp >= values.sbp) { $('form-error').textContent = 'Diastolic BP must be lower than systolic BP.'; return; }
-  $('form-error').textContent = ''; showResult(values);
+  $('form-error').textContent = '';
+  const button = event.currentTarget.querySelector('button[type="submit"]');
+  button.disabled = true; button.textContent = 'Calculating…';
+  try {
+    const derived = derivedValues(values);
+    const response = await fetch('/api/predict', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...values, map: derived.map, shockIndex: derived.si }) });
+    if (!response.ok) throw new Error('Prediction service unavailable');
+    const prediction = await response.json();
+    showResult(values, { ...derived, risk: prediction.risk });
+  } catch (error) {
+    $('form-error').textContent = 'The prediction service is unavailable. Start the model server, then try again.';
+  } finally {
+    button.disabled = false; button.innerHTML = 'Estimate screening risk <span>→</span>';
+  }
 });
 $('reset-button').addEventListener('click', () => { $('risk-form').reset(); $('form-error').textContent=''; updateDerived(); $('empty-state').hidden=false; $('result-state').hidden=true; });
